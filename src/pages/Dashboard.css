@@ -1,0 +1,48 @@
+.dashboard-page {
+  min-height: calc(100vh - 80px);
+}
+
+.booking-card {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.booking-card.active {
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 229, 255, 0.05);
+}
+
+.booking-card.active:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 229, 255, 0.1);
+}
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-status.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+@media (max-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-grid > div:first-child {
+    order: 2;
+  }
+  
+  .dashboard-grid > div:last-child {
+    order: 1;
+    margin-bottom: 2rem;
+  }
+}
