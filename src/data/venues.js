@@ -1,8 +1,9 @@
 import { format } from 'date-fns';
 
 const STORAGE_KEY = 'futsal_bookings';
+const STORAGE_VENUES = 'futsal_venues';
 
-export const VENUES = [
+const DEFAULT_VENUES = [
   {
     id: 'v1',
     name: 'Champion Futsal Arena',
@@ -44,10 +45,105 @@ export const VENUES = [
   }
 ];
 
+export const VENUES = [...DEFAULT_VENUES];
+
+export function getStoredVenues() {
+  if (typeof window === 'undefined') return DEFAULT_VENUES;
+  try {
+    const stored = localStorage.getItem(STORAGE_VENUES);
+    if (!stored) {
+      localStorage.setItem(STORAGE_VENUES, JSON.stringify(DEFAULT_VENUES));
+      return DEFAULT_VENUES;
+    }
+    return JSON.parse(stored);
+  } catch (e) {
+    return DEFAULT_VENUES;
+  }
+}
+
+export function saveVenues(venues = []) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_VENUES, JSON.stringify(venues));
+}
+
+export function addVenue(venue) {
+  const venues = getStoredVenues();
+  venues.push(venue);
+  saveVenues(venues);
+}
+
+export function updateVenue(updatedVenue) {
+  const venues = getStoredVenues().map(v => v.id === updatedVenue.id ? updatedVenue : v);
+  saveVenues(venues);
+}
+
+export function refreshVenues() {
+  const stored = getStoredVenues();
+  if (stored.length) {
+    VENUES.splice(0, VENUES.length, ...stored);
+  }
+}
+
+export function deleteVenue(id) {
+  const venues = getStoredVenues().filter(v => v.id !== id);
+  saveVenues(venues);
+}
+
+// Load stored venues into the constant array at runtime
+const storedVenues = getStoredVenues();
+if (storedVenues.length) {
+  VENUES.splice(0, VENUES.length, ...storedVenues);
+}
+
 export function getStoredBookings() {
   if (typeof window === 'undefined') return [];
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw || raw === '[]') {
+      // Seed realistic booking data for the last 14 days
+      const seeded = [];
+      const userEmails = ['budi@gmail.com', 'ahmad@gmail.com', 'rizky@gmail.com', 'dedi@gmail.com', 'eko@gmail.com'];
+      
+      // Seed 20 bookings nicely distributed across the last 14 days
+      for (let i = 0; i < 20; i++) {
+        const d = new Date();
+        const daysAgo = i % 14; 
+        d.setDate(d.getDate() - daysAgo);
+        
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        const venue = DEFAULT_VENUES[i % DEFAULT_VENUES.length];
+        const court = venue.courts[i % venue.courts.length];
+        const price = court.price;
+        const total = price + 15000;
+        const slot = venue.slots[i % venue.slots.length];
+        const userEmail = userEmails[i % userEmails.length];
+        const status = i % 6 === 0 ? 'invalid' : 'valid'; // Some cancelled/invalid for cancel rate metric
+        
+        seeded.push({
+          id: `BK-${1789000000000 - i * 1234567}`,
+          venueId: venue.id,
+          venueName: venue.name,
+          venueLocation: venue.location,
+          courtId: court.courtId,
+          courtLabel: court.label,
+          price,
+          total,
+          date: dateStr,
+          slot,
+          userEmail,
+          createdAt: new Date(d.getTime() - i * 3600000).toISOString(),
+          status
+        });
+      }
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
+    }
+    return JSON.parse(raw);
   } catch (error) {
     return [];
   }
@@ -115,14 +211,15 @@ export function getAllBookings() {
 
 export function getBookingsByUser(userEmail) {
   const bookings = getAllBookings();
-  return bookings.filter((booking) => booking.userEmail === userEmail);
+  const cleanEmail = (userEmail || '').trim().toLowerCase();
+  return bookings.filter((booking) => (booking.userEmail || '').trim().toLowerCase() === cleanEmail);
 }
 
 export function getBookingStats(filterDate) {
   const bookings = getAllBookings();
   const filtered = filterDate ? bookings.filter((booking) => booking.date === filterDate) : bookings;
   const totalRevenue = filtered.reduce((sum, booking) => sum + (booking.total ?? 0), 0);
-  const uniqueUsers = new Set(filtered.map((booking) => booking.userEmail)).size;
+  const uniqueUsers = new Set(filtered.map((booking) => (booking.userEmail || '').trim().toLowerCase())).size;
   const totalAvailableSlots = VENUES.reduce((total, venue) => total + venue.slots.length * venue.courts.length, 0);
   const occupancyRate = totalAvailableSlots ? Math.round((filtered.length / totalAvailableSlots) * 100) : 0;
 
@@ -152,8 +249,9 @@ export function bookSlot(venue, courtId, date, slot, userEmail) {
     total,
     date,
     slot,
-    userEmail,
+    userEmail: (userEmail || '').trim().toLowerCase(),
     createdAt: new Date().toISOString(),
+    status: 'invalid',
   });
   saveBookings(bookings);
   return bookingId;

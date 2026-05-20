@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Activity, User, LogOut } from 'lucide-react';
+import { getStoredUsers } from '../data/users';
 import './Navbar.css';
 
 export default function Navbar() {
@@ -11,15 +12,49 @@ export default function Navbar() {
   useEffect(() => {
     const updateAuth = () => {
       const storedUser = typeof window !== 'undefined' ? localStorage.getItem('authUser') : null;
-      setAuthUser(storedUser ? JSON.parse(storedUser) : null);
+      const parsed = storedUser ? JSON.parse(storedUser) : null;
+      
+      if (parsed) {
+        if (parsed.role === 'user') {
+          // Check if blocked in db
+          const dbUser = getStoredUsers().find(u => u.email.toLowerCase() === parsed.email.toLowerCase());
+          if (dbUser && dbUser.status === 'diblokir') {
+            const activeSessions = JSON.parse(localStorage.getItem('active_sessions') || '[]');
+            const updated = activeSessions.filter(email => email !== parsed.email.toLowerCase());
+            localStorage.setItem('active_sessions', JSON.stringify(updated));
+            localStorage.removeItem('authUser');
+            setAuthUser(null);
+            navigate('/login');
+            return;
+          }
+
+          // Otherwise, sync active sessions
+          const activeSessions = JSON.parse(localStorage.getItem('active_sessions') || '[]');
+          if (!activeSessions.includes(parsed.email.toLowerCase())) {
+            activeSessions.push(parsed.email.toLowerCase());
+            localStorage.setItem('active_sessions', JSON.stringify(activeSessions));
+          }
+        }
+      }
+      
+      setAuthUser(parsed);
     };
 
     updateAuth();
     window.addEventListener('storage', updateAuth);
     return () => window.removeEventListener('storage', updateAuth);
-  }, []);
+  }, [navigate]);
 
   const handleLogout = () => {
+    const storedUser = typeof window !== 'undefined' ? localStorage.getItem('authUser') : null;
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      if (parsed && parsed.email) {
+        const activeSessions = JSON.parse(localStorage.getItem('active_sessions') || '[]');
+        const updated = activeSessions.filter(email => email !== parsed.email.toLowerCase());
+        localStorage.setItem('active_sessions', JSON.stringify(updated));
+      }
+    }
     localStorage.removeItem('authUser');
     setAuthUser(null);
     navigate('/');

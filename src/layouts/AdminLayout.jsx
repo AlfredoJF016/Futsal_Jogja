@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, CalendarDays, MapPin, Users, FileText, Settings, 
-  LogOut, Bell, MessageSquare, Search, Menu, Activity, ChevronDown 
+  LogOut, Bell, Search, Menu, Activity, X, CheckCircle, AlertTriangle, Clock 
 } from 'lucide-react';
+import { getAllBookings } from '../data/venues';
+import { logAdminActivity } from '../utils/activityLogger';
 import './AdminLayout.css';
 
 export default function AdminLayout() {
@@ -11,14 +13,35 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [authUser, setAuthUser] = useState(null);
+  const [showNotif, setShowNotif] = useState(false);
+  const [readNotifs, setReadNotifs] = useState([]);
+  const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-    const storedUser = typeof window !== 'undefined' ? localStorage.getItem('authUser') : null;
-    const parsed = storedUser ? JSON.parse(storedUser) : null;
-    setAuthUser(parsed);
-    if (!parsed || parsed.role !== 'admin') {
-      navigate('/login');
-    }
+    const loadUser = () => {
+      const storedUser = typeof window !== 'undefined' ? localStorage.getItem('authUser') : null;
+      const parsed = storedUser ? JSON.parse(storedUser) : null;
+      setAuthUser(parsed);
+      if (typeof window !== 'undefined' && (!parsed || parsed.role !== 'admin')) {
+        navigate('/login');
+      }
+    };
+
+    loadUser();
+
+    // Listen to storage changes to update profile in real-time
+    window.addEventListener('storage', loadUser);
+
+    // Load initial bookings and poll every 1 second for realtime updates
+    setBookings(getAllBookings());
+    const interval = setInterval(() => {
+      setBookings(getAllBookings());
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', loadUser);
+      clearInterval(interval);
+    };
   }, [navigate]);
   
   const menuItems = [
@@ -83,6 +106,7 @@ export default function AdminLayout() {
           <button
             type="button"
             onClick={() => {
+              logAdminActivity('logout', 'Melakukan logout dari Panel Admin');
               localStorage.removeItem('authUser');
               window.location.href = '/';
             }}
@@ -100,7 +124,7 @@ export default function AdminLayout() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.08),transparent_18%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.06),transparent_22%)]" />
 
         {/* Sticky Glassmorphic Top Navbar */}
-        <header className="relative h-[88px] border-b border-slate-800/50 bg-[#081120]/45 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 z-10 shrink-0 sticky top-0">
+        <header className="relative h-[88px] border-b border-slate-800/50 bg-[#081120]/45 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 z-30 shrink-0 sticky top-0">
           
           {/* Search Bar */}
           <div className="relative group w-64 md:w-80">
@@ -114,30 +138,101 @@ export default function AdminLayout() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-5">
-            <button className="relative p-2.5 rounded-xl bg-slate-900/40 hover:bg-slate-800/60 border border-slate-800/50 text-slate-400 hover:text-white transition-all">
-              <MessageSquare size={18} />
-            </button>
-            <button className="relative p-2.5 rounded-xl bg-slate-900/40 hover:bg-slate-800/60 border border-slate-800/50 text-slate-400 hover:text-white transition-all">
-              <Bell size={18} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]"></span>
-            </button>
+            {/* Notification Bell */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotif(!showNotif)}
+                className="relative p-2.5 rounded-xl bg-slate-900/40 hover:bg-slate-800/60 border border-slate-800/50 text-slate-400 hover:text-white transition-all"
+              >
+                <Bell size={18} />
+                {(() => {
+                  const unread = bookings.filter(b => b.status === 'invalid' && !readNotifs.includes(b.id));
+                  return unread.length > 0 ? (
+                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 flex items-center justify-center bg-rose-500 text-white text-[9px] font-bold rounded-full px-1 shadow-[0_0_10px_rgba(244,63,94,0.5)]">
+                      {unread.length}
+                    </span>
+                  ) : null;
+                })()}
+              </button>
+
+              {/* Backdrop Overlay for closing */}
+              {showNotif && (
+                <div 
+                  className="fixed inset-0 z-40 cursor-default bg-transparent" 
+                  onClick={() => setShowNotif(false)}
+                />
+              )}
+
+              {/* Notification Dropdown */}
+              {showNotif && (
+                <div className="absolute right-0 top-14 w-[360px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-5 py-4 border-b border-slate-800/60 flex justify-between items-center">
+                    <h3 className="text-sm font-bold text-white">Notifikasi</h3>
+                    <button onClick={() => setShowNotif(false)} className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                    {(() => {
+                      const list = [...bookings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8);
+                      if (list.length === 0) {
+                        return <div className="px-5 py-8 text-center text-slate-500 text-xs">Belum ada notifikasi.</div>;
+                      }
+                      return list.map(bk => {
+                        const isUnread = bk.status === 'invalid' && !readNotifs.includes(bk.id);
+                        return (
+                          <div key={bk.id} className={`px-5 py-3.5 border-b border-slate-800/40 flex items-start gap-3 hover:bg-slate-800/30 transition-colors ${isUnread ? 'bg-cyan-500/5' : ''}`}>
+                            <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${bk.status === 'valid' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                              {bk.status === 'valid' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-slate-200 font-semibold leading-relaxed">
+                                {bk.status === 'valid' ? 'Booking dikonfirmasi' : 'Booking baru perlu validasi'}
+                              </p>
+                              <p className="text-[11px] text-slate-500 mt-0.5 truncate">{bk.venueName} • {bk.courtLabel} • {bk.slot}</p>
+                              <div className="flex items-center gap-1 text-[10px] text-slate-600 mt-1">
+                                <Clock size={10} />
+                                {bk.date} — {bk.userEmail}
+                              </div>
+                            </div>
+                            {isUnread && <span className="w-2 h-2 bg-cyan-400 rounded-full mt-1.5 shrink-0 shadow-[0_0_8px_#22d3ee]"></span>}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  {(() => {
+                    const unread = bookings.filter(b => b.status === 'invalid' && !readNotifs.includes(b.id));
+                    return unread.length > 0 ? (
+                      <div className="px-5 py-3 border-t border-slate-800/60 bg-slate-950/20">
+                        <button
+                          onClick={() => { setReadNotifs(prev => [...prev, ...unread.map(b => b.id)]); }}
+                          className="text-xs text-cyan-400 font-semibold hover:text-cyan-300 transition-colors w-full text-center"
+                        >
+                          Tandai semua sudah dibaca
+                        </button>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
             
             <div className="h-6 w-px bg-slate-800"></div>
             
-            <div className="flex items-center gap-3 cursor-pointer group">
+            <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-[1.5px] shadow-lg">
                   <div className="w-full h-full rounded-xl overflow-hidden bg-[#081120]">
-                    <img src="https://ui-avatars.com/api/?name=Admin+Jogja&background=2563eb&color=fff" alt="Profile" className="w-full h-full object-cover" />
+                    <img src={authUser?.avatar || "https://ui-avatars.com/api/?name=Admin+Jogja&background=2563eb&color=fff"} alt="Profile" className="w-full h-full object-cover" />
                   </div>
                 </div>
                 <span className="absolute bottom-[-1px] right-[-1px] w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#081120] shadow-[0_0_10px_#10b981]"></span>
               </div>
               <div className="text-left hidden sm:block">
-                <div className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors leading-none">Admin Jogja</div>
+                <div className="text-sm font-bold text-white leading-none">{authUser?.name || 'Admin Jogja'}</div>
                 <div className="text-[11px] text-slate-400 mt-1">Superadmin</div>
               </div>
-              <ChevronDown size={14} className="text-slate-400 group-hover:text-white transition-colors" />
             </div>
           </div>
         </header>

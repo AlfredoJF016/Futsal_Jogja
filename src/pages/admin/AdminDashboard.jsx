@@ -5,6 +5,8 @@ import {
   TrendingDown, Percent, Zap
 } from 'lucide-react';
 import { getAllBookings, getBookingStats, VENUES, normalizeDate } from '../../data/venues';
+import { exportToPDF } from '../../utils/reportPrinter';
+import { logAdminActivity } from '../../utils/activityLogger';
 
 export default function AdminDashboard() {
   const [bookings, setBookings] = useState(getAllBookings());
@@ -26,7 +28,7 @@ export default function AdminDashboard() {
 
     return [
       {
-        label: 'Total Revenue',
+        label: 'Total Pendapatan',
         value: `Rp ${todayStats.totalRevenue.toLocaleString('id-ID')}`,
         increase: true,
         percentage: '+12.5%',
@@ -37,7 +39,7 @@ export default function AdminDashboard() {
         border: 'border-emerald-500/20'
       },
       {
-        label: 'Total Booking',
+        label: 'Total Pemesanan',
         value: todayStats.bookingCount.toString(),
         increase: true,
         percentage: '+8.2%',
@@ -48,7 +50,7 @@ export default function AdminDashboard() {
         border: 'border-blue-500/20'
       },
       {
-        label: 'Active Users',
+        label: 'Pengguna Aktif',
         value: todayStats.activeUsers.toString(),
         increase: true,
         percentage: '+15.3%',
@@ -59,7 +61,7 @@ export default function AdminDashboard() {
         border: 'border-cyan-500/20'
       },
       {
-        label: 'Occupancy Rate',
+        label: 'Tingkat Keterisian',
         value: `${todayStats.occupancyRate}%`,
         increase: false,
         percentage: '-2.4%',
@@ -93,9 +95,25 @@ export default function AdminDashboard() {
         court: `${booking.courtLabel} (${VENUES.find((venue) => venue.id === booking.venueId)?.type || 'Futsal'})`,
         time: booking.slot,
         user: booking.userEmail,
-        occupancy: 'Booked'
+        occupancy: 'Dipesan'
       }));
   }, [bookings]);
+
+  const handlePrintReport = () => {
+    const summaryStats = [
+      { label: 'Total Pendapatan', value: stats[0].value, percentage: stats[0].percentage },
+      { label: 'Total Pemesanan', value: stats[1].value, percentage: stats[1].percentage },
+      { label: 'Pengguna Aktif', value: stats[2].value, percentage: stats[2].percentage },
+      { label: 'Tingkat Keterisian', value: stats[3].value, percentage: stats[3].percentage }
+    ];
+
+    exportToPDF({
+      title: 'Rekapitulasi Analitik Dashboard JogjaFutsal',
+      stats: summaryStats,
+      bookingsData: bookings
+    });
+    logAdminActivity('export_pdf', 'Mengekspor laporan ringkasan dashboard ke file PDF');
+  };
 
   return (
     <div className="animate-fade-in flex flex-col gap-8">
@@ -118,7 +136,7 @@ export default function AdminDashboard() {
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-slate-800/70 bg-slate-950/30 px-4 py-2 text-xs font-semibold text-slate-300">
               <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.35)]"></span>
-              Active users: {stats[2].value}
+              Pengguna aktif: {stats[2].value}
             </span>
           </div>
         </div>
@@ -129,7 +147,10 @@ export default function AdminDashboard() {
             <option>Minggu Ini</option>
             <option>Bulan Ini</option>
           </select>
-          <button className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-sm font-semibold hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all">
+          <button 
+            onClick={handlePrintReport}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-sm font-semibold hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all"
+          >
             Cetak Laporan
           </button>
         </div>
@@ -179,8 +200,8 @@ export default function AdminDashboard() {
               <p className="text-xs text-slate-400 mt-0.5">Analitik performa bulanan JogjaFutsal</p>
             </div>
             <div className="flex items-center gap-4 text-xs font-semibold text-slate-400">
-              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-blue-500"></span> Booking</div>
-              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-400"></span> Revenue</div>
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-blue-500"></span> Pemesanan</div>
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-400"></span> Pendapatan</div>
             </div>
           </div>
 
@@ -190,7 +211,7 @@ export default function AdminDashboard() {
               {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-full h-px bg-white"></div>)}
             </div>
 
-            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, idx) => {
+            {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((month, idx) => {
               const height1 = Math.floor(Math.random() * 60) + 25;
               const height2 = Math.floor(Math.random() * 50) + 15;
               return (
@@ -260,7 +281,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-semibold text-slate-200">{schedule.user}</div>
-                  <div className="text-xs font-bold text-emerald-400 mt-1">{schedule.occupancy} Full</div>
+                  <div className="text-xs font-bold text-emerald-400 mt-1">{schedule.occupancy}</div>
                 </div>
               </div>
             ))}

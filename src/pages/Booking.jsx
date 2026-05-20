@@ -71,16 +71,24 @@ export default function Booking() {
     }
 
     if (step === 2) {
-      if (!paymentMethod) {
-        setAuthError('Silakan pilih metode pembayaran.');
-        return;
-      }
-
-      const authUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('authUser') ?? '{}') : { email: 'guest' };
-      const id = bookSlot(venue, assignedCourt.courtId, bookingDate, selectedSlot, authUser.email || 'guest');
-      setBookingId(id);
-      setStep(3);
+      handleSubmitProof();
     }
+  };
+
+  const handleSubmitProof = () => {
+    if (!paymentMethod) {
+      setAuthError('Silakan pilih metode pembayaran.');
+      return;
+    }
+
+    const authUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('authUser') ?? '{}') : { email: 'guest' };
+    const id = bookSlot(venue, assignedCourt.courtId, bookingDate, selectedSlot, authUser.email || 'guest');
+    setBookingId(id);
+    
+    // Open Whatsapp link
+    window.open('https://api.whatsapp.com/qr/VPQBHLTOPXOCN1?autoload=1&app_absent=0', '_blank');
+    
+    setStep(3);
   };
 
   const totalPrice = assignedCourt ? assignedCourt.price + 5000 + 10000 : venue?.courts[0].price + 5000 + 10000;
@@ -264,12 +272,82 @@ export default function Booking() {
               </label>
             </div>
 
+            {paymentMethod && (
+              <div className="payment-details-box mt-6 p-6 rounded-2xl bg-slate-950/40 border border-slate-800/80 animate-fade-in mb-6">
+                {paymentMethod === 'qris' && (
+                  <div className="flex flex-col items-center text-center">
+                    <p className="text-sm text-slate-300 mb-4 font-medium">Scan kode QRIS di bawah ini untuk membayar:</p>
+                    <div className="bg-white p-4 rounded-2xl shadow-xl inline-block mb-4 border border-slate-200">
+                      <img src="/FutsalJogja/QRIS.jpeg" alt="QRIS Code" className="w-56 h-auto object-contain mx-auto" />
+                    </div>
+                    <p className="text-xs text-slate-400">Scan menggunakan GoPay, OVO, Dana, LinkAja, atau aplikasi M-Banking Anda.</p>
+                  </div>
+                )}
+
+                {paymentMethod === 'ewallet' && (
+                  <div>
+                    <p className="text-sm text-slate-300 mb-4 font-medium">Silakan lakukan transfer ke salah satu nomor E-Wallet berikut:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                        <span className="text-xs text-slate-400 font-semibold block uppercase">GoPay</span>
+                        <span className="font-mono text-base font-bold text-white block mt-1">0812-3456-7890</span>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                        <span className="text-xs text-slate-400 font-semibold block uppercase">OVO</span>
+                        <span className="font-mono text-base font-bold text-white block mt-1">0821-9876-5432</span>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                        <span className="text-xs text-slate-400 font-semibold block uppercase">DANA</span>
+                        <span className="font-mono text-base font-bold text-white block mt-1">0899-8888-7777</span>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                        <span className="text-xs text-slate-400 font-semibold block uppercase">ShopeePay</span>
+                        <span className="font-mono text-base font-bold text-white block mt-1">0857-1111-2222</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === 'transfer' && (
+                  <div>
+                    <p className="text-sm text-slate-300 mb-4 font-medium">Silakan transfer ke salah satu rekening Bank berikut (a/n Futsal Jogja):</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                        <span className="text-xs text-slate-400 font-semibold block uppercase">BCA</span>
+                        <span className="font-mono text-base font-bold text-white block mt-1">8012345678</span>
+                        <span className="text-xs text-slate-500">a/n Futsal Jogja</span>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                        <span className="text-xs text-slate-400 font-semibold block uppercase">BRI</span>
+                        <span className="font-mono text-base font-bold text-white block mt-1">1029384756</span>
+                        <span className="text-xs text-slate-500">a/n Futsal Jogja</span>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                        <span className="text-xs text-slate-400 font-semibold block uppercase">BNI</span>
+                        <span className="font-mono text-base font-bold text-white block mt-1">9876543210</span>
+                        <span className="text-xs text-slate-500">a/n Futsal Jogja</span>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                        <span className="text-xs text-slate-400 font-semibold block uppercase">MANDIRI</span>
+                        <span className="font-mono text-base font-bold text-white block mt-1">1324354657</span>
+                        <span className="text-xs text-slate-500">a/n Futsal Jogja</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleSubmitProof}
+                  className="btn btn-primary w-full justify-center text-sm font-bold tracking-wide mt-4"
+                >
+                  Kirim Bukti
+                </button>
+              </div>
+            )}
+
             <div className="flex gap-4">
-              <button className="btn btn-secondary flex-1 justify-center" onClick={() => setStep(1)}>
+              <button className="btn btn-secondary w-full justify-center" onClick={() => setStep(1)}>
                 Kembali
-              </button>
-              <button className="btn btn-primary flex-1 justify-center" onClick={handleNext}>
-                Bayar Rp {totalPrice.toLocaleString('id-ID')}
               </button>
             </div>
           </div>

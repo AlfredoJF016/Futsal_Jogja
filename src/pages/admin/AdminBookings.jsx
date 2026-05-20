@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Search, Filter, Eye, Check, X, Calendar, Clock, MapPin } from 'lucide-react';
 import { getAllBookings, VENUES, normalizeDate } from '../../data/venues';
+import { logAdminActivity } from '../../utils/activityLogger';
 
 export default function AdminBookings() {
   const [bookings, setBookings] = useState(getAllBookings());
@@ -15,6 +16,37 @@ export default function AdminBookings() {
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
+
+  const handleConfirm = (id) => {
+    const target = bookings.find((b) => b.id === id);
+    const updated = bookings.map((b) => {
+      if (b.id === id) {
+        return { ...b, status: 'valid' };
+      }
+      return b;
+    });
+    localStorage.setItem('futsal_bookings', JSON.stringify(updated));
+    setBookings(updated);
+
+    const desc = target
+      ? `Mengonfirmasi pemesanan ${target.id} (${target.courtLabel} - ${target.userEmail})`
+      : `Mengonfirmasi pemesanan ${id}`;
+    logAdminActivity('confirm_booking', desc);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus booking ini?')) {
+      const target = bookings.find((b) => b.id === id);
+      const updated = bookings.filter((b) => b.id !== id);
+      localStorage.setItem('futsal_bookings', JSON.stringify(updated));
+      setBookings(updated);
+
+      const desc = target
+        ? `Menghapus transaksi pemesanan ${target.id} (${target.courtLabel} - ${target.userEmail})`
+        : `Menghapus transaksi pemesanan ${id}`;
+      logAdminActivity('delete_booking', desc);
+    }
+  };
 
   return (
     <div className="animate-fade-in p-2 text-slate-200">
@@ -60,14 +92,12 @@ export default function AdminBookings() {
                   <td colSpan="6" className="py-12 text-center text-slate-400">Belum ada booking saat ini.</td>
                 </tr>
               ) : (
-                bookings.map((booking) => {
-                  const today = normalizeDate(new Date());
-                  const status = booking.date < today ? 'Completed' : booking.date === today ? 'Active' : 'Pending';
-                  const statusClass = status === 'Completed'
+                [...bookings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((booking) => {
+                  const isValid = booking.status === 'valid';
+                  const statusLabel = isValid ? 'Valid' : 'Invalid';
+                  const statusClass = isValid
                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-emerald-500/10'
-                    : status === 'Active'
-                      ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-blue-500/10'
-                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-amber-500/10';
+                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-rose-500/10';
 
                   return (
                     <tr key={booking.id} className="border-b border-slate-800/40 hover:bg-slate-900/40 transition-colors group">
@@ -86,17 +116,25 @@ export default function AdminBookings() {
                       <td className="py-4.5 px-4 font-extrabold text-white">Rp {booking.total?.toLocaleString('id-ID')}</td>
                       <td className="py-4.5 px-4 text-center">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${statusClass}`}>
-                          {status}
+                          {statusLabel}
                         </span>
                       </td>
                       <td className="py-4.5 pr-6 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {status === 'Pending' && (
+                          {!isValid && (
                             <>
-                              <button className="p-2 rounded-xl bg-slate-950/40 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-slate-800 transition-colors" title="Konfirmasi">
+                              <button 
+                                onClick={() => handleConfirm(booking.id)}
+                                className="p-2 rounded-xl bg-slate-950/40 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-slate-800 transition-colors" 
+                                title="Konfirmasi"
+                              >
                                 <Check size={14} />
                               </button>
-                              <button className="p-2 rounded-xl bg-slate-950/40 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors" title="Tolak">
+                              <button 
+                                onClick={() => handleDelete(booking.id)}
+                                className="p-2 rounded-xl bg-slate-950/40 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors" 
+                                title="Tolak/Hapus"
+                              >
                                 <X size={14} />
                               </button>
                             </>

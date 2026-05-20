@@ -9,7 +9,13 @@ import './Search.css';
 export default function Search() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [reload, setReload] = useState(0);
+  const [selectedLocation, setSelectedLocation] = useState('Semua Wilayah Yogyakarta');
   const dateString = normalizeDate(selectedDate);
+
+  const filteredVenues = VENUES.filter((venue) => {
+    if (selectedLocation === 'Semua Wilayah Yogyakarta') return true;
+    return venue.location.toLowerCase().includes(selectedLocation.toLowerCase());
+  });
 
   useEffect(() => {
     const handleStorage = (event) => {
@@ -36,7 +42,11 @@ export default function Search() {
         <div className="grid grid-cols-3 gap-6">
           <div className="form-group mb-0">
             <label className="form-label flex items-center gap-2"><MapPin size={16}/> Lokasi</label>
-            <select className="form-input">
+            <select 
+              className="form-input"
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+            >
               <option>Semua Wilayah Yogyakarta</option>
               <option>Sleman</option>
               <option>Kota Yogyakarta</option>
@@ -80,8 +90,13 @@ export default function Search() {
 
       {/* Results */}
       <div className="results-grid grid grid-cols-3 gap-6">
-        {VENUES.map((venue, idx) => {
-          const summary = getVenueSummary(venue, dateString);
+        {filteredVenues.length === 0 ? (
+          <div className="col-span-3 text-center py-12 glass-panel">
+            <p className="text-slate-400">Tidak ada lapangan yang ditemukan di lokasi terpilih.</p>
+          </div>
+        ) : (
+          filteredVenues.map((venue, idx) => {
+            const summary = getVenueSummary(venue, dateString);
           const statusLabel = summary.openSlotCount > 0
             ? `Tersedia di ${summary.firstAvailableCourt?.label}`
             : 'Semua penuh';
@@ -139,7 +154,7 @@ export default function Search() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
     </div>
   );
