@@ -278,7 +278,7 @@ export default function Booking() {
                   <div className="flex flex-col items-center text-center">
                     <p className="text-sm text-slate-300 mb-4 font-medium">Scan kode QRIS di bawah ini untuk membayar:</p>
                     <div className="bg-white p-4 rounded-2xl shadow-xl inline-block mb-4 border border-slate-200">
-                      <img src="/FutsalJogja/QRIS.jpeg" alt="QRIS Code" className="w-56 h-auto object-contain mx-auto" />
+                      <img src={`${import.meta.env.BASE_URL}QRIS.jpeg`} alt="QRIS Code" className="w-56 h-auto object-contain mx-auto" />
                     </div>
                     <p className="text-xs text-slate-400">Scan menggunakan GoPay, OVO, Dana, LinkAja, atau aplikasi M-Banking Anda.</p>
                   </div>
