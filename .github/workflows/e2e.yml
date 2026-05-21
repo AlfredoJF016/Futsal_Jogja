@@ -19,7 +19,7 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
@@ -31,7 +31,7 @@ jobs:
         run: npm run preview -- --host 127.0.0.1 --port 5173 &
 
       - name: Wait for app
-        run: npx wait-on http://127.0.0.1:5173
+        run: npx wait-on http://127.0.0.1:5173/Futsal_Jogja/
 
       - name: Run Playwright tests
         run: npx playwright test --reporter=list

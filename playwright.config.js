@@ -6,14 +6,14 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 5000 },
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://127.0.0.1:5173/Futsal_Jogja/',
     headless: true,
     viewport: { width: 1280, height: 720 },
     actionTimeout: 10000,
   },
   webServer: {
     command: 'npm run preview -- --host 127.0.0.1 --port 5173',
-    url: 'http://127.0.0.1:5173',
+    url: 'http://127.0.0.1:5173/Futsal_Jogja/',
     timeout: 30_000,
     reuseExistingServer: false,
   },
